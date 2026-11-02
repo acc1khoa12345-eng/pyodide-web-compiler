@@ -1,0 +1,1034 @@
+<!DOCTYPE html>
+<html lang="vi" class="h-full">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>VS Code Web - Pyodide Quadratic Engine</title>
+    <!-- Tailwind CSS -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- Font Awesome Icons -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
+    <!-- Google Fonts: Inter & Fira Code -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Fira+Code:wght@400;500;600&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <!-- Pyodide CDN -->
+    <script src="https://cdn.jsdelivr.net/pyodide/v0.26.4/full/pyodide.js"></script>
+
+    <script>
+        tailwind.config = {
+            theme: {
+                extend: {
+                    colors: {
+                        vscode: {
+                            bg: '#1e1e1e',
+                            sidebar: '#252526',
+                            activity: '#333333',
+                            titlebar: '#323233',
+                            tabActive: '#1e1e1e',
+                            tabInactive: '#2d2d2d',
+                            border: '#3c3c3c',
+                            blue: '#007acc',
+                            statusbar: '#007acc',
+                            terminal: '#181818',
+                            lineNum: '#858585'
+                        }
+                    },
+                    fontFamily: {
+                        sans: ['Inter', 'sans-serif'],
+                        mono: ['"Fira Code"', 'Consolas', 'Courier New', 'monospace']
+                    }
+                }
+            }
+        }
+    </script>
+
+    <style>
+        ::-webkit-scrollbar {
+            width: 8px;
+            height: 8px;
+        }
+        ::-webkit-scrollbar-track {
+            background: #1e1e1e;
+        }
+        ::-webkit-scrollbar-thumb {
+            background: #424242;
+            border-radius: 4px;
+        }
+        ::-webkit-scrollbar-thumb:hover {
+            background: #4f4f4f;
+        }
+        .code-font {
+            font-family: 'Fira Code', Consolas, monospace;
+            font-feature-settings: "liga" on, "calt" on;
+        }
+        .editor-textarea {
+            tab-size: 4;
+            -moz-tab-size: 4;
+            white-space: pre;
+            overflow-wrap: normal;
+        }
+    </style>
+</head>
+<body class="h-full bg-vscode-bg text-[#cccccc] font-sans flex flex-col select-none overflow-hidden">
+
+    <!-- Top VS Code Titlebar -->
+    <header class="h-9 bg-vscode-titlebar border-b border-vscode-border flex items-center justify-between px-3 text-xs z-20">
+        <div class="flex items-center space-x-3">
+            <div class="flex items-center space-x-2">
+                <span class="w-3 h-3 rounded-full bg-[#ff5f56] inline-block cursor-pointer hover:opacity-80"></span>
+                <span class="w-3 h-3 rounded-full bg-[#ffbd2e] inline-block cursor-pointer hover:opacity-80"></span>
+                <span class="w-3 h-3 rounded-full bg-[#27c93f] inline-block cursor-pointer hover:opacity-80"></span>
+            </div>
+            <div class="hidden sm:flex items-center space-x-2 text-[#cccccc] font-medium ml-2">
+                <i class="fa-brands fa-python text-[#3776ab] text-sm"></i>
+                <span id="titlebar-filename">quadratic_solver.py — VS Code Web (Pyodide Engine)</span>
+            </div>
+        </div>
+
+        <!-- Breadcrumb Center -->
+        <div class="hidden md:flex items-center bg-[#202020] px-4 py-1 rounded border border-[#3e3e42] text-[#999999] text-[11px] space-x-1.5 shadow-inner">
+            <i class="fa-solid fa-folder-tree text-amber-500"></i>
+            <span>src</span>
+            <span>&gt;</span>
+            <i class="fa-brands fa-python text-[#4b8bbe]"></i>
+            <span id="breadcrumb-filename" class="text-[#cccccc]">quadratic_solver.py</span>
+            <span>&gt;</span>
+            <span class="text-[#4ec9b0]">QuadraticEquation</span>
+        </div>
+
+        <div class="flex items-center space-x-3 text-xs">
+            <div id="pyodide-badge" class="flex items-center space-x-1.5 px-2 py-0.5 rounded bg-yellow-900/40 text-yellow-300 border border-yellow-700/50">
+                <i class="fa-solid fa-circle-notch fa-spin text-[10px]" id="status-spinner"></i>
+                <span id="pyodide-status-text" class="text-[11px] font-mono font-medium">Nạp Pyodide WASM...</span>
+            </div>
+            <span class="hidden sm:inline-block text-[#858585]">Python 3.12 (WASM)</span>
+        </div>
+    </header>
+
+    <!-- Main Workspace Container -->
+    <div class="flex-1 flex overflow-hidden">
+
+        <!-- Activity Bar (Far Left) -->
+        <aside class="w-12 bg-vscode-activity flex flex-col items-center py-2 justify-between border-r border-vscode-border flex-shrink-0">
+            <div class="flex flex-col space-y-4 text-[#858585] text-lg">
+                <button title="Explorer" class="text-white border-l-2 border-white pl-2 pr-3 py-1 -ml-0.5 transition-colors">
+                    <i class="fa-regular fa-copy"></i>
+                </button>
+                <button title="Search" class="hover:text-white transition-colors py-1">
+                    <i class="fa-solid fa-magnifying-glass"></i>
+                </button>
+                <button title="Source Control" class="hover:text-white transition-colors py-1">
+                    <i class="fa-solid fa-code-branch"></i>
+                </button>
+                <button title="Run and Debug" class="hover:text-white transition-colors py-1 text-vscode-blue">
+                    <i class="fa-solid fa-play"></i>
+                </button>
+                <button title="Extensions" class="hover:text-white transition-colors py-1">
+                    <i class="fa-solid fa-cubes"></i>
+                </button>
+            </div>
+            <div class="flex flex-col space-y-4 text-[#858585] text-lg mb-1">
+                <button title="Accounts" class="hover:text-white transition-colors">
+                    <i class="fa-regular fa-user"></i>
+                </button>
+                <button title="Settings" class="hover:text-white transition-colors">
+                    <i class="fa-solid fa-gear"></i>
+                </button>
+            </div>
+        </aside>
+
+        <!-- Sidebar (File Explorer) -->
+        <aside class="hidden lg:flex w-60 bg-vscode-sidebar border-r border-vscode-border flex-col text-xs flex-shrink-0">
+            <div class="h-9 px-3 flex items-center justify-between text-[11px] uppercase tracking-wider font-bold text-[#bbbbbb] border-b border-vscode-border">
+                <span>Explorer</span>
+                <i class="fa-solid fa-ellipsis hover:text-white cursor-pointer"></i>
+            </div>
+            <div class="p-2">
+                <div class="flex items-center space-x-1 text-white font-semibold mb-1 cursor-pointer">
+                    <i class="fa-solid fa-chevron-down text-[10px]"></i>
+                    <span class="uppercase text-[10px] tracking-wider text-[#999]">QUADRATIC-ENGINE</span>
+                </div>
+                <!-- File Tree list -->
+                <div id="explorer-file-list" class="pl-2 space-y-0.5 mt-1">
+                    <!-- Populated dynamically -->
+                </div>
+            </div>
+
+            <div class="mt-auto p-3 border-t border-vscode-border bg-[#1f1f20] text-[#999999]">
+                <div class="text-[11px] font-semibold text-white mb-1 flex items-center justify-between">
+                    <span>IEEE 754 Engine</span>
+                    <i class="fa-solid fa-microchip text-vscode-blue"></i>
+                </div>
+                <p class="text-[10px] leading-relaxed">
+                    Hỗ trợ triệt tiêu số (Catastrophic Cancellation), chống tràn số (Overflow Protection) và kiểm định 17 ca kiểm thử biên.
+                </p>
+            </div>
+        </aside>
+
+        <!-- Main Editor & Terminal Split Panel -->
+        <main class="flex-1 flex flex-col overflow-hidden bg-vscode-bg">
+
+            <!-- Top Tab Bar & Execution Toolbar -->
+            <div class="h-9 bg-vscode-tabInactive border-b border-vscode-border flex items-center justify-between overflow-x-auto select-none">
+                <!-- Dynamic Tabs Container -->
+                <div id="tabs-container" class="flex h-full items-center overflow-x-auto">
+                    <!-- Tabs rendered dynamically -->
+                </div>
+
+                <!-- Action Toolbar -->
+                <div class="flex items-center space-x-2 px-3 text-xs flex-shrink-0">
+                    <!-- Clear Terminal Button -->
+                    <button id="btn-clear-term" title="Xóa màn hình Terminal" class="bg-[#2d2d2d] hover:bg-[#3d3d3d] text-gray-200 px-2.5 py-1 rounded border border-vscode-border flex items-center space-x-1 transition">
+                        <i class="fa-solid fa-trash-can text-[11px] text-red-400"></i>
+                        <span class="hidden sm:inline text-xs">Xóa Term</span>
+                    </button>
+
+                    <!-- Run Button -->
+                    <button id="btn-run" class="bg-[#0e639c] hover:bg-[#1177bb] text-white px-3.5 py-1 rounded font-medium flex items-center space-x-1.5 shadow transition active:scale-95 disabled:opacity-50 disabled:cursor-not-allowed">
+                        <i class="fa-solid fa-play text-[11px]" id="run-icon"></i>
+                        <span class="text-xs font-semibold">Chạy Code (F5)</span>
+                    </button>
+                </div>
+            </div>
+
+            <!-- Quick Equation Interactive Toolbar -->
+            <div class="bg-[#252526] border-b border-vscode-border flex flex-wrap items-center justify-between px-3 py-1.5 text-xs gap-2 select-none z-10">
+                <div class="flex items-center space-x-2 flex-wrap">
+                    <span class="text-[#4ec9b0] font-semibold flex items-center space-x-1">
+                        <i class="fa-solid fa-calculator text-xs"></i>
+                        <span>Đổi PT nhanh:</span>
+                    </span>
+                    <div class="flex items-center space-x-1 font-mono text-[11px]">
+                        <span class="text-gray-400">a =</span>
+                        <input id="quick-a" type="number" step="any" value="1" class="w-16 bg-[#1e1e1e] border border-[#3c3c3c] rounded px-1.5 py-0.5 text-white focus:border-vscode-blue outline-none text-center">
+                        <span class="text-gray-400">b =</span>
+                        <input id="quick-b" type="number" step="any" value="-7" class="w-16 bg-[#1e1e1e] border border-[#3c3c3c] rounded px-1.5 py-0.5 text-white focus:border-vscode-blue outline-none text-center">
+                        <span class="text-gray-400">c =</span>
+                        <input id="quick-c" type="number" step="any" value="10" class="w-16 bg-[#1e1e1e] border border-[#3c3c3c] rounded px-1.5 py-0.5 text-white focus:border-vscode-blue outline-none text-center">
+                    </div>
+                    <button id="btn-apply-quick" class="bg-[#0e639c] hover:bg-[#1177bb] text-white px-2.5 py-1 rounded text-xs font-medium transition active:scale-95 flex items-center space-x-1 shadow">
+                        <i class="fa-solid fa-bolt text-[10px]"></i>
+                        <span>Cập nhật & Chạy</span>
+                    </button>
+                </div>
+
+                <div class="flex items-center space-x-2">
+                    <span class="text-gray-400 text-[11px] hidden sm:inline">Phương trình mẫu:</span>
+                    <select id="preset-selector" class="bg-[#1e1e1e] border border-[#3c3c3c] rounded px-2 py-1 text-xs text-gray-200 outline-none cursor-pointer focus:border-vscode-blue">
+                        <option value="1,-7,10">Hai nghiệm: x² - 7x + 10 = 0</option>
+                        <option value="1,-5,6">Hai nghiệm: x² - 5x + 6 = 0</option>
+                        <option value="1,-4,4">Nghiệm kép: x² - 4x + 4 = 0</option>
+                        <option value="1,2,5">Nghiệm phức: x² + 2x + 5 = 0</option>
+                        <option value="1,-10000000,1">Triệt tiêu số: x² - 10⁷x + 1 = 0</option>
+                        <option value="1e150,-3e150,2e150">Hệ số lớn 10¹⁵⁰ (chống Overflow)</option>
+                        <option value="0,2,-6">Suy biến bậc nhất: 2x - 6 = 0</option>
+                        <option value="0,0,5">Suy biến vô nghiệm: 5 = 0</option>
+                    </select>
+                </div>
+            </div>
+
+            <!-- Code Editor Box -->
+            <div class="flex-1 flex overflow-hidden relative">
+                <!-- Line Numbers Column -->
+                <div id="line-numbers" class="w-12 bg-vscode-bg border-r border-vscode-border/50 text-vscode-lineNum text-right pr-2.5 pt-3 font-mono text-xs select-none leading-relaxed overflow-hidden">
+                    1
+                </div>
+
+                <!-- Textarea Editor with auto-sync -->
+                <div class="flex-1 relative h-full">
+                    <textarea id="code-editor" spellcheck="false" class="w-full h-full p-3 pt-3 bg-transparent text-[#d4d4d4] code-font text-xs leading-relaxed resize-none outline-none editor-textarea focus:ring-0"></textarea>
+                </div>
+            </div>
+
+            <!-- Resize Handle / Splitter -->
+            <div id="panel-resizer" class="h-1.5 bg-vscode-border hover:bg-vscode-blue cursor-row-resize transition-colors flex items-center justify-center">
+                <div class="w-10 h-0.5 bg-[#666] rounded-full"></div>
+            </div>
+
+            <!-- VS Code Terminal Panel (Bottom) -->
+            <div id="terminal-panel" class="h-64 bg-vscode-terminal border-t border-vscode-border flex flex-col">
+                <!-- Terminal Header -->
+                <div class="h-8 px-3 bg-[#1e1e1e] border-b border-vscode-border flex items-center justify-between text-xs select-none">
+                    <div class="flex items-center space-x-4">
+                        <span class="font-semibold text-white uppercase text-[11px] tracking-wider border-b-2 border-white pb-1 -mb-1 flex items-center space-x-1.5">
+                            <i class="fa-solid fa-terminal text-green-400"></i>
+                            <span>TERMINAL</span>
+                        </span>
+                        <span class="text-[#858585] text-[11px] hover:text-white cursor-pointer">OUTPUT</span>
+                        <span class="text-[#858585] text-[11px] hover:text-white cursor-pointer">PROBLEMS (0)</span>
+                    </div>
+
+                    <div class="flex items-center space-x-3 text-[#999999]">
+                        <span id="exec-time" class="text-[11px] font-mono text-cyan-400 hidden">⚡ 0ms</span>
+                        <button id="btn-copy-term" title="Sao chép Terminal" class="hover:text-white transition">
+                            <i class="fa-regular fa-copy"></i>
+                        </button>
+                        <button id="btn-toggle-wrap" title="Wrap text" class="hover:text-white transition">
+                            <i class="fa-solid fa-arrow-turn-down"></i>
+                        </button>
+                        <button id="btn-maximize-term" title="Phóng to Terminal" class="hover:text-white transition">
+                            <i class="fa-regular fa-window-maximize"></i>
+                        </button>
+                    </div>
+                </div>
+
+                <!-- Terminal Content Output -->
+                <div id="terminal-output" class="flex-1 p-3 overflow-y-auto font-mono text-xs leading-relaxed select-text space-y-1">
+                    <div class="text-[#858585]">VS Code Web Embedded Terminal — Python 3.12 WebAssembly</div>
+                    <div class="text-cyan-400">[*] Đang tải engine WebAssembly Pyodide từ CDN...</div>
+                </div>
+            </div>
+
+        </main>
+    </div>
+
+    <!-- Status Bar (Bottom) -->
+    <footer class="h-6 bg-vscode-statusbar text-white text-[11px] flex items-center justify-between px-3 select-none z-20">
+        <div class="flex items-center space-x-3">
+            <div class="flex items-center space-x-1 cursor-pointer hover:bg-white/10 px-1 py-0.5 rounded">
+                <i class="fa-solid fa-code-branch text-[10px]"></i>
+                <span>main*</span>
+            </div>
+            <div class="flex items-center space-x-1 cursor-pointer hover:bg-white/10 px-1 py-0.5 rounded">
+                <i class="fa-solid fa-rotate text-[10px]"></i>
+                <span id="status-tag">Khởi tạo</span>
+            </div>
+            <div class="hidden sm:flex items-center space-x-1 cursor-pointer hover:bg-white/10 px-1 py-0.5 rounded">
+                <i class="fa-solid fa-circle-xmark text-red-300 text-[10px]"></i>
+                <span>0</span>
+                <i class="fa-solid fa-triangle-exclamation text-yellow-300 text-[10px] ml-1"></i>
+                <span>0</span>
+            </div>
+        </div>
+
+        <div class="flex items-center space-x-4">
+            <span class="hover:bg-white/10 px-1 py-0.5 rounded cursor-pointer hidden md:inline">Ln <span id="cursor-ln">1</span>, Col <span id="cursor-col">1</span></span>
+            <span class="hover:bg-white/10 px-1 py-0.5 rounded cursor-pointer">Spaces: 4</span>
+            <span class="hover:bg-white/10 px-1 py-0.5 rounded cursor-pointer">UTF-8</span>
+            <div class="flex items-center space-x-1 hover:bg-white/10 px-1 py-0.5 rounded cursor-pointer">
+                <i class="fa-brands fa-python text-yellow-200 text-[11px]"></i>
+                <span>Pyodide 0.26.4</span>
+            </div>
+        </div>
+    </footer>
+
+    <!-- Application Script -->
+    <script>
+        // DOM Token List Safe Helpers (Chống dứt điểm lỗi InvalidCharacterError)
+        function safeClassRemove(element, ...classStrings) {
+            if (!element) return;
+            classStrings.forEach(str => {
+                if (!str) return;
+                // Tách theo khoảng trắng hoặc dấu phẩy để biến thành danh sách token hợp lệ
+                const tokens = str.split(/[\s,]+/);
+                tokens.forEach(token => {
+                    const cleanToken = token.trim();
+                    if (cleanToken) {
+                        element.classList.remove(cleanToken);
+                    }
+                });
+            });
+        }
+
+        function safeClassAdd(element, ...classStrings) {
+            if (!element) return;
+            classStrings.forEach(str => {
+                if (!str) return;
+                const tokens = str.split(/[\s,]+/);
+                tokens.forEach(token => {
+                    const cleanToken = token.trim();
+                    if (cleanToken) {
+                        element.classList.add(cleanToken);
+                    }
+                });
+            });
+        }
+
+        // Virtual Filesystem & Workspace Data
+        const virtualFiles = {
+            "quadratic_solver.py": {
+                name: "quadratic_solver.py",
+                icon: "fa-brands fa-python text-[#4b8bbe]",
+                content: `"""
+MÔ HÌNH HÀM SỐ BẬC HAI & BỘ GIẢI ỔN ĐỊNH SỐ HỌC
+Chuẩn: IEEE 754 Floating-Point Arithmetic
+"""
+import math
+from enum import Enum
+from dataclasses import dataclass
+from typing import Tuple, Optional
+
+class RootType(Enum):
+    TWO_REAL = "Hai nghiệm thực phân biệt"
+    ONE_REAL = "Nghiệm kép thực"
+    NO_REAL = "Vô nghiệm thực (Có 2 nghiệm phức)"
+    LINEAR_ONE = "Suy biến: Bậc nhất 1 nghiệm"
+    NO_SOLUTION = "Suy biến: Vô nghiệm (0x + c = 0)"
+    INFINITE_SOLUTIONS = "Suy biến: Vô số nghiệm (0 = 0)"
+
+@dataclass
+class QuadResult:
+    status: RootType
+    roots: Tuple[Optional[float], Optional[float]] = (None, None)
+    complex_roots: Tuple[Optional[complex], Optional[complex]] = (None, None)
+    delta: Optional[float] = None
+    note: str = ""
+
+class QuadraticEquation:
+    """
+    Đại diện hàm số f(x) = ax^2 + bx + c.
+    Tích hợp thuật toán Horner và công thức nghiệm ổn định.
+    """
+    def __init__(self, a: float, b: float, c: float):
+        for name, val in [('a', a), ('b', b), ('c', c)]:
+            if not isinstance(val, (int, float)):
+                raise TypeError(f"Hệ số '{name}' phải là kiểu số, nhận: {type(val).__name__}")
+            if not math.isfinite(val):
+                raise ValueError(f"Hệ số '{name}' phải hữu hạn (không NaN/Inf).")
+
+        self.orig_a = float(a)
+        self.orig_b = float(b)
+        self.orig_c = float(c)
+
+        # Chuẩn hóa hệ số để tránh tràn số (Overflow) khi tính Delta
+        max_coeff = max(abs(self.orig_a), abs(self.orig_b), abs(self.orig_c))
+        if max_coeff == 0:
+            self.a, self.b, self.c = 0.0, 0.0, 0.0
+        else:
+            self.a = self.orig_a / max_coeff
+            self.b = self.orig_b / max_coeff
+            self.c = self.orig_c / max_coeff
+
+    def __str__(self) -> str:
+        """Định dạng chuỗi toán học động cho phương trình."""
+        parts = []
+        if self.orig_a != 0:
+            if self.orig_a == 1:
+                parts.append("x²")
+            elif self.orig_a == -1:
+                parts.append("-x²")
+            else:
+                parts.append(f"{self.orig_a:g}x²")
+        if self.orig_b != 0:
+            if parts:
+                sign = " + " if self.orig_b > 0 else " - "
+                abs_b = abs(self.orig_b)
+                coeff = "" if abs_b == 1 else f"{abs_b:g}"
+                parts.append(f"{sign}{coeff}x")
+            else:
+                coeff = "" if self.orig_b == 1 else ("-" if self.orig_b == -1 else f"{self.orig_b:g}")
+                parts.append(f"{coeff}x")
+        if self.orig_c != 0:
+            if parts:
+                sign = " + " if self.orig_c > 0 else " - "
+                parts.append(f"{sign}{abs(self.orig_c):g}")
+            else:
+                parts.append(f"{self.orig_c:g}")
+        if not parts:
+            parts.append("0")
+        return "".join(parts) + " = 0"
+
+    def evaluate(self, x: float) -> float:
+        """Tính f(x) dùng sơ đồ Horner: ((a*x) + b)*x + c"""
+        if not math.isfinite(x):
+            raise ValueError("x phải hữu hạn.")
+        return (self.orig_a * x + self.orig_b) * x + self.orig_c
+
+    def get_vertex(self) -> Tuple[float, float]:
+        """Tọa độ đỉnh (x_v, y_v). Dùng Horner thay vì -Delta/4a để tránh mất độ chính xác."""
+        if self.orig_a == 0:
+            raise ArithmeticError("a = 0: Hàm suy biến bậc nhất, không có đỉnh Parabol.")
+        x_v = -self.orig_b / (2.0 * self.orig_a)
+        y_v = self.evaluate(x_v)
+        return (x_v, y_v)
+
+    def solve(self, rel_tol: float = 1e-12, abs_tol: float = 1e-14) -> QuadResult:
+        """Giải phương trình ax^2 + bx + c = 0 bằng thuật toán số học ổn định."""
+        if self.a == 0.0:
+            if self.b == 0.0:
+                if self.c == 0.0:
+                    return QuadResult(RootType.INFINITE_SOLUTIONS, note="Thỏa mãn với mọi x")
+                return QuadResult(RootType.NO_SOLUTION, note="Vô nghiệm")
+            root = -self.orig_c / self.orig_b
+            return QuadResult(RootType.LINEAR_ONE, (root, None), note="Phương trình bậc nhất")
+
+        if self.c == 0.0:
+            x1, x2 = 0.0, -self.orig_b / self.orig_a
+            r_min, r_max = min(x1, x2), max(x1, x2)
+            if math.isclose(r_min, r_max, rel_tol=rel_tol, abs_tol=abs_tol):
+                return QuadResult(RootType.ONE_REAL, (0.0, 0.0), delta=0.0)
+            return QuadResult(RootType.TWO_REAL, (r_min, r_max), delta=self.b*self.b)
+
+        delta = self.b * self.b - 4.0 * self.a * self.c
+
+        if math.isclose(delta, 0.0, rel_tol=rel_tol, abs_tol=abs_tol) or delta == 0.0:
+            x_k = -self.orig_b / (2.0 * self.orig_a)
+            return QuadResult(RootType.ONE_REAL, (x_k, x_k), delta=0.0)
+
+        if delta < 0.0:
+            real_part = -self.orig_b / (2.0 * self.orig_a)
+            orig_delta = self.orig_b * self.orig_b - 4.0 * self.orig_a * self.orig_c
+            imag_part = math.sqrt(abs(orig_delta)) / (2.0 * abs(self.orig_a))
+            return QuadResult(RootType.NO_REAL, 
+                              complex_roots=(complex(real_part, imag_part), complex(real_part, -imag_part)), 
+                              delta=delta)
+
+        # Công thức ổn định triệt tiêu số (Catastrophic Cancellation Prevention)
+        sqrt_delta = math.sqrt(delta)
+        sign_b = 1.0 if self.b >= 0 else -1.0
+        q = -0.5 * (self.b + sign_b * sqrt_delta)
+
+        r1 = q / self.a
+        r2 = self.c / q
+        return QuadResult(RootType.TWO_REAL, (min(r1, r2), max(r1, r2)), delta=delta)
+
+if __name__ == "__main__":
+    # THAY ĐỔI HỆ SỐ a, b, c TẠI ĐÂY ĐỂ GIẢI BẤT KỲ PHƯƠNG TRÌNH NÀO:
+    a, b, c = 1.0, -7.0, 10.0
+
+    print("=" * 64)
+    eq = QuadraticEquation(a, b, c)
+    res = eq.solve()
+
+    print(f"[*] PHƯƠNG TRÌNH: {eq}")
+    print(f"-> Hệ số thực tế: a = {eq.orig_a}, b = {eq.orig_b}, c = {eq.orig_c}")
+    print(f"-> Trạng thái: {res.status.value}")
+
+    if res.roots[0] is not None:
+        if res.roots[1] is not None:
+            print(f"-> Nghiệm thực: x1 = {res.roots[0]:.8g}, x2 = {res.roots[1]:.8g}")
+        else:
+            print(f"-> Nghiệm bậc nhất: x = {res.roots[0]:.8g}")
+
+    if res.complex_roots[0] is not None:
+        print(f"-> Nghiệm phức: x1 = {res.complex_roots[0]}, x2 = {res.complex_roots[1]}")
+
+    try:
+        vx, vy = eq.get_vertex()
+        print(f"-> Đỉnh Parabol: ({vx:.6g}, {vy:.6g})")
+    except ArithmeticError as err:
+        print(f"-> Đỉnh Parabol: {err}")
+
+    if res.note:
+        print(f"-> Ghi chú: {res.note}")
+    print("=" * 64)
+`
+            },
+            "test_suite_17.py": {
+                name: "test_suite_17.py",
+                icon: "fa-solid fa-file-code text-cyan-400",
+                content: `"""
+BỘ KIỂM THỬ 17 CA BIÊN (TEST SUITE 17)
+Kiểm tra số học dấu phẩy động IEEE 754 & thuật toán số.
+"""
+from quadratic_solver import QuadraticEquation, RootType
+import math
+
+test_cases = [
+    {"id": 1,  "name": "Hai nghiệm phân biệt chuẩn", "a": 1, "b": -3, "c": 2, "expected": RootType.TWO_REAL, "roots": (1.0, 2.0)},
+    {"id": 2,  "name": "Nghiệm kép (x - 2)^2 = 0", "a": 1, "b": -4, "c": 4, "expected": RootType.ONE_REAL, "roots": (2.0, 2.0)},
+    {"id": 3,  "name": "Vô nghiệm thực (x^2 + 1 = 0)", "a": 1, "b": 0, "c": 1, "expected": RootType.NO_REAL},
+    {"id": 4,  "name": "Có 2 nghiệm phức liên hợp", "a": 2, "b": 2, "c": 5, "expected": RootType.NO_REAL},
+    {"id": 5,  "name": "a = 0 (Bậc nhất có nghiệm)", "a": 0, "b": 2, "c": -4, "expected": RootType.LINEAR_ONE, "roots": (2.0, None)},
+    {"id": 6,  "name": "a = 0, b = 0, c != 0 (Vô nghiệm)", "a": 0, "b": 0, "c": 5, "expected": RootType.NO_SOLUTION},
+    {"id": 7,  "name": "a = 0, b = 0, c = 0 (Vô số nghiệm)", "a": 0, "b": 0, "c": 0, "expected": RootType.INFINITE_SOLUTIONS},
+    {"id": 8,  "name": "c = 0 (Có nghiệm x = 0)", "a": 2, "b": -6, "c": 0, "expected": RootType.TWO_REAL, "roots": (0.0, 3.0)},
+    {"id": 9,  "name": "Hệ số âm: -x^2 - x + 6 = 0", "a": -1, "b": -1, "c": 6, "expected": RootType.TWO_REAL, "roots": (-3.0, 2.0)},
+    {"id": 10, "name": "Tổ hợp 0: a=3, b=0, c=0", "a": 3, "b": 0, "c": 0, "expected": RootType.ONE_REAL, "roots": (0.0, 0.0)},
+    {"id": 11, "name": "Hệ số cực lớn (10^150) chống Overflow", "a": 1e150, "b": -3e150, "c": 2e150, "expected": RootType.TWO_REAL, "roots": (1.0, 2.0)},
+    {"id": 12, "name": "Hệ số cực nhỏ (10^-150) chống Underflow", "a": 1e-150, "b": -5e-150, "c": 6e-150, "expected": RootType.TWO_REAL, "roots": (2.0, 3.0)},
+    {"id": 13, "name": "Đầu vào chứa NaN / Inf (Bắt lỗi)", "a": float('nan'), "b": 1, "c": 2, "expected_exc": ValueError},
+    {"id": 14, "name": "Nghiệm rất gần nhau", "a": 1.0, "b": -2.00000000001, "c": 1.00000000001, "expected": RootType.TWO_REAL},
+    {"id": 15, "name": "Triệt tiêu số học: x^2 - 10^7x + 1 = 0", "a": 1.0, "b": -1e7, "c": 1.0, "expected": RootType.TWO_REAL},
+    {"id": 16, "name": "Biệt thức Delta cực nhỏ gần 0", "a": 1.0, "b": 2.0, "c": 1.0 + 1e-15, "expected": RootType.ONE_REAL},
+    {"id": 17, "name": "Đầu vào sai kiểu chuỗi 'abc'", "a": "invalid", "b": 1, "c": 2, "expected_exc": TypeError},
+]
+
+print("=" * 68)
+print(" CHẠY BỘ KIỂM THỬ 17 CA BIÊN (TEST SUITE 17)")
+print("=" * 68)
+
+passed = 0
+for tc in test_cases:
+    cid = tc["id"]
+    name = tc["name"]
+    if "expected_exc" in tc:
+        try:
+            eq = QuadraticEquation(tc["a"], tc["b"], tc["c"])
+            res = eq.solve()
+            print(f"[FAIL] Test {cid:02d} ({name}): Cần ném ngoại lệ {tc['expected_exc'].__name__}")
+        except Exception as e:
+            if isinstance(e, tc["expected_exc"]):
+                print(f"[PASS] Test {cid:02d} ({name}) -> Bắt đúng ngoại lệ {type(e).__name__}")
+                passed += 1
+            else:
+                print(f"[FAIL] Test {cid:02d} ({name}) -> Sai loại ngoại lệ: {type(e).__name__}")
+        continue
+
+    try:
+        eq = QuadraticEquation(tc["a"], tc["b"], tc["c"])
+        res = eq.solve()
+        if res.status != tc["expected"]:
+            print(f"[FAIL] Test {cid:02d} ({name}): Kì vọng {tc['expected'].name}, nhận {res.status.name}")
+            continue
+
+        if "roots" in tc and tc["roots"] and res.roots[0] is not None:
+            exp_r1, exp_r2 = tc["roots"]
+            r1, r2 = res.roots
+            assert math.isclose(r1, exp_r1, rel_tol=1e-5, abs_tol=1e-5), f"r1 sai: {r1} != {exp_r1}"
+            if exp_r2 is not None and r2 is not None:
+                assert math.isclose(r2, exp_r2, rel_tol=1e-5, abs_tol=1e-5), f"r2 sai: {r2} != {exp_r2}"
+
+        print(f"[PASS] Test {cid:02d} ({name}) -> {res.status.name} | Nghiệm: {res.roots}")
+        passed += 1
+    except Exception as e:
+        print(f"[FAIL] Test {cid:02d} ({name}) gặp lỗi: {e}")
+
+print("=" * 68)
+print(f"KẾT QUẢ: ĐÃ VƯỢT QUA {passed}/{len(test_cases)} KIỂM THỬ.")
+print("=" * 68)
+`
+            },
+            "numeric_policy.py": {
+                name: "numeric_policy.py",
+                icon: "fa-solid fa-file-lines text-amber-400",
+                content: `"""
+CHÍNH SÁCH SỐ HỌC & ĐỘ ỔN ĐỊNH SỐ (NUMERIC POLICY)
+Phân tích triệt tiêu số học (Catastrophic Cancellation)
+"""
+import math
+
+def compare_formulas(a: float, b: float, c: float):
+    print("=" * 70)
+    print(f" SO SÁNH ĐỘ CHÍNH XÁC SỐ HỌC VỚI: {a}x^2 + ({b})x + {c} = 0")
+    print("=" * 70)
+    
+    # 1. Công thức sách giáo khoa: (-b +- sqrt(b^2 - 4ac)) / (2a)
+    delta = b*b - 4.0*a*c
+    sqrt_delta = math.sqrt(delta)
+    trad_x1 = (-b - sqrt_delta) / (2.0 * a)
+    trad_x2 = (-b + sqrt_delta) / (2.0 * a)
+    
+    # Dư sai f(x1)
+    trad_res1 = (a * trad_x1 + b) * trad_x1 + c
+    
+    # 2. Công thức ổn định (William H. Press)
+    sign_b = 1.0 if b >= 0 else -1.0
+    q = -0.5 * (b + sign_b * sqrt_delta)
+    stab_x1 = q / a
+    stab_x2 = c / q
+    
+    stab_res1 = (a * stab_x1 + b) * stab_x1 + c
+    
+    print("[1. CÔNG THỨC TRUYỀN THỐNG]:")
+    print(f"   x1 (nghiệm nhỏ) = {min(trad_x1, trad_x2):.16e}")
+    print(f"   Dư sai f(x1)   = {trad_res1:.16e} (MẤT CHỮ SỐ CÓ NGHĨA!)")
+    print("\\n[2. CÔNG THỨC ỔN ĐỊNH SỐ]:")
+    print(f"   x1 (nghiệm nhỏ) = {min(stab_x1, stab_x2):.16e}")
+    print(f"   Dư sai f(x1)   = {stab_res1:.16e} (BẢO TOÀN ĐỘ CHÍNH XÁC)")
+    print("=" * 70)
+
+if __name__ == "__main__":
+    # Mô phỏng b = 10,000,000, c = 1
+    compare_formulas(1.0, -10000000.0, 1.0)
+`
+            },
+            "benchmark_precision.py": {
+                name: "benchmark_precision.py",
+                icon: "fa-solid fa-chart-line text-emerald-400",
+                content: `"""
+ĐO LƯỜNG TỐC ĐỘ & HIỆU SUẤT TÍNH TOÁN
+Thực hiện 50,000 phép giải phương trình bậc hai
+"""
+import time
+from quadratic_solver import QuadraticEquation
+
+print("[*] Đang thực hiện benchmark 50,000 phép tính...")
+start = time.perf_counter()
+
+for i in range(1, 50001):
+    eq = QuadraticEquation(1.0, -float(i), 1.0)
+    res = eq.solve()
+
+elapsed = time.perf_counter() - start
+avg_time_us = (elapsed / 50000) * 1e6
+
+print(f"[OK] Hoàn thành trong: {elapsed:.4f} giây")
+print(f"[OK] Thời gian trung bình mỗi phương trình: {avg_time_us:.2f} µs")
+print(f"[OK] Tốc độ xử lý: {int(50000 / elapsed):,} phương trình/giây")
+`
+            }
+        };
+
+        // Application State
+        let currentFile = "quadratic_solver.py";
+        let pyodideInstance = null;
+        let isPyodideReady = false;
+        let isExecuting = false;
+
+        // DOM Elements
+        const codeEditor = document.getElementById('code-editor');
+        const lineNumbers = document.getElementById('line-numbers');
+        const terminalOutput = document.getElementById('terminal-output');
+        const btnRun = document.getElementById('btn-run');
+        const runIcon = document.getElementById('run-icon');
+        const btnClearTerm = document.getElementById('btn-clear-term');
+        const btnCopyTerm = document.getElementById('btn-copy-term');
+        const btnToggleWrap = document.getElementById('btn-toggle-wrap');
+        const pyodideBadge = document.getElementById('pyodide-badge');
+        const pyodideStatusText = document.getElementById('pyodide-status-text');
+        const statusSpinner = document.getElementById('status-spinner');
+        const statusTag = document.getElementById('status-tag');
+        const execTimeBadge = document.getElementById('exec-time');
+        const cursorLn = document.getElementById('cursor-ln');
+        const cursorCol = document.getElementById('cursor-col');
+        const titlebarFilename = document.getElementById('titlebar-filename');
+        const breadcrumbFilename = document.getElementById('breadcrumb-filename');
+        const tabsContainer = document.getElementById('tabs-container');
+        const explorerFileList = document.getElementById('explorer-file-list');
+
+        // Line Numbers Updater
+        function updateLineNumbers() {
+            const lines = codeEditor.value.split('\n').length;
+            let lineStr = '';
+            for (let i = 1; i <= lines; i++) {
+                lineStr += i + '<br>';
+            }
+            lineNumbers.innerHTML = lineStr;
+        }
+
+        // Render Tabs & Explorer Items
+        function renderTabs() {
+            tabsContainer.innerHTML = '';
+            explorerFileList.innerHTML = '';
+
+            Object.keys(virtualFiles).forEach(fileName => {
+                const file = virtualFiles[fileName];
+                const isActive = (fileName === currentFile);
+
+                // 1. Tạo Tab Element
+                const tab = document.createElement('div');
+                tab.className = `h-full px-3 flex items-center space-x-2 border-r border-vscode-border cursor-pointer text-xs font-mono select-none transition-colors ${
+                    isActive 
+                        ? 'bg-vscode-tabActive border-t-2 border-vscode-blue text-white' 
+                        : 'bg-vscode-tabInactive hover:bg-[#282828] text-[#969696] hover:text-[#cccccc]'
+                }`;
+
+                tab.innerHTML = `
+                    <i class="${file.icon}"></i>
+                    <span>${file.name}</span>
+                    ${isActive ? '<span class="w-1.5 h-1.5 rounded-full bg-[#007acc] ml-1"></span>' : ''}
+                `;
+                tab.onclick = () => switchTab(fileName);
+                tabsContainer.appendChild(tab);
+
+                // 2. Tạo Explorer Item
+                const explorerItem = document.createElement('div');
+                explorerItem.className = `flex items-center space-x-2 py-1 px-2 rounded cursor-pointer transition-colors text-xs font-mono ${
+                    isActive 
+                        ? 'bg-[#37373d] text-white' 
+                        : 'hover:bg-[#2a2d2e] text-[#a0a0a0]'
+                }`;
+                explorerItem.innerHTML = `
+                    <i class="${file.icon}"></i>
+                    <span>${file.name}</span>
+                `;
+                explorerItem.onclick = () => switchTab(fileName);
+                explorerFileList.appendChild(explorerItem);
+            });
+
+            // Update Breadcrumbs & Title
+            titlebarFilename.textContent = `${currentFile} — VS Code Web (Pyodide Engine)`;
+            breadcrumbFilename.textContent = currentFile;
+        }
+
+        // Switch Tab Function (Hoàn toàn an toàn với DOMTokenList)
+        function switchTab(fileName) {
+            if (!virtualFiles[fileName]) return;
+            
+            // Lưu nội dung file hiện tại trước khi chuyển
+            virtualFiles[currentFile].content = codeEditor.value;
+            
+            // Chuyển sang file mới
+            currentFile = fileName;
+            codeEditor.value = virtualFiles[currentFile].content;
+
+            renderTabs();
+            updateLineNumbers();
+            updateCursorPos();
+        }
+
+        // Terminal Output Logger
+        function appendTerminal(text, type = 'stdout') {
+            const lines = text.split('\n');
+            lines.forEach((line) => {
+                if (line === '' && lines.length > 1) return;
+                const div = document.createElement('div');
+                div.className = 'whitespace-pre-wrap break-all';
+
+                if (type === 'stderr') {
+                    div.className += ' text-[#f44747]';
+                    div.textContent = line;
+                } else if (line.includes('[PASS]')) {
+                    div.innerHTML = `<span class="text-[#4ec9b0] font-bold">[PASS]</span> ${escapeHtml(line.replace('[PASS]', ''))}`;
+                } else if (line.includes('[FAIL]')) {
+                    div.innerHTML = `<span class="text-[#f44747] font-bold">[FAIL]</span> ${escapeHtml(line.replace('[FAIL]', ''))}`;
+                } else if (line.includes('[INFO]') || line.includes('[OK]')) {
+                    div.innerHTML = `<span class="text-[#4fc1ff] font-bold">[INFO]</span> ${escapeHtml(line.replace(/\[INFO\]|\[OK\]/, ''))}`;
+                } else if (line.startsWith('=')) {
+                    div.className += ' text-[#dcdcaa] font-semibold';
+                    div.textContent = line;
+                } else if (line.startsWith('-')) {
+                    div.className += ' text-[#858585]';
+                    div.textContent = line;
+                } else {
+                    div.className += ' text-[#cccccc]';
+                    div.textContent = line;
+                }
+
+                terminalOutput.appendChild(div);
+            });
+
+            terminalOutput.scrollTop = terminalOutput.scrollHeight;
+        }
+
+        function escapeHtml(text) {
+            return text.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
+        }
+
+        // Initialize Pyodide WebAssembly & Virtual Filesystem
+        async function initPyodideWasm() {
+            try {
+                statusTag.textContent = "Đang tải WASM";
+                pyodideInstance = await loadPyodide({
+                    stdout: (text) => appendTerminal(text, 'stdout'),
+                    stderr: (text) => appendTerminal(text, 'stderr')
+                });
+
+                isPyodideReady = true;
+
+                // Cập nhật badge an toàn
+                safeClassRemove(pyodideBadge, 'bg-yellow-900/40', 'text-yellow-300', 'border-yellow-700/50');
+                safeClassAdd(pyodideBadge, 'bg-emerald-900/40', 'text-emerald-300', 'border-emerald-700/50');
+
+                statusSpinner.className = "fa-solid fa-check text-[10px] text-emerald-400";
+                pyodideStatusText.textContent = "WASM Ready";
+                statusTag.textContent = "Sẵn sàng (WASM 3.12)";
+
+                appendTerminal("[INFO] Khởi tạo Pyodide WebAssembly thành công!", "stdout");
+                appendTerminal("[INFO] Hệ thống tệp ảo đã đồng bộ. Sẵn sàng thực thi.\n", "stdout");
+
+                // Chạy thử file mặc định
+                runPythonCode();
+            } catch (err) {
+                safeClassRemove(pyodideBadge, 'bg-yellow-900/40', 'text-yellow-300', 'border-yellow-700/50');
+                safeClassAdd(pyodideBadge, 'bg-red-900/40', 'text-red-300', 'border-red-700/50');
+                statusSpinner.className = "fa-solid fa-triangle-exclamation text-[10px] text-red-400";
+                pyodideStatusText.textContent = "Lỗi WASM";
+                appendTerminal("[FAIL] Lỗi tải Pyodide WASM: " + err.message, "stderr");
+            }
+        }
+
+        // Execute Python Code with Virtual File System Sync
+        async function runPythonCode() {
+            if (!isPyodideReady) {
+                appendTerminal("[!] Đang tải Pyodide WebAssembly, xin chờ một chút...", "stderr");
+                return;
+            }
+            if (isExecuting) return;
+
+            // Đồng bộ tệp đang sửa
+            virtualFiles[currentFile].content = codeEditor.value;
+
+            // Ghi toàn bộ workspace vào Pyodide Virtual Filesystem để `import` hoạt động
+            try {
+                Object.keys(virtualFiles).forEach(fName => {
+                    pyodideInstance.FS.writeFile(fName, virtualFiles[fName].content, { encoding: "utf8" });
+                });
+            } catch (e) {
+                console.error("Lỗi đồng bộ virtual FS:", e);
+            }
+
+            isExecuting = true;
+            btnRun.disabled = true;
+            runIcon.className = "fa-solid fa-circle-notch fa-spin text-[11px]";
+            statusTag.textContent = "Đang chạy...";
+
+            appendTerminal(`\n>>> python ${currentFile} [${new Date().toLocaleTimeString()}]`, 'stdout');
+            const startTime = performance.now();
+
+            try {
+                // XÓA BỘ NHỚ ĐỆM sys.modules ĐỂ TRÁNH DÙNG CODE CŨ TRONG RAM
+                await pyodideInstance.runPythonAsync(`
+import sys
+for mod_name in ['quadratic_solver', 'test_suite_17', 'numeric_policy', 'benchmark_precision']:
+    if mod_name in sys.modules:
+        del sys.modules[mod_name]
+`);
+
+                const currentCode = codeEditor.value;
+                await pyodideInstance.runPythonAsync(currentCode);
+                const duration = (performance.now() - startTime).toFixed(1);
+
+                execTimeBadge.textContent = `⚡ ${duration}ms`;
+                execTimeBadge.classList.remove('hidden');
+                statusTag.textContent = `Thành công (${duration}ms)`;
+            } catch (err) {
+                appendTerminal(String(err), 'stderr');
+                statusTag.textContent = "Lỗi thực thi";
+            } finally {
+                isExecuting = false;
+                btnRun.disabled = false;
+                runIcon.className = "fa-solid fa-play text-[11px]";
+            }
+        }
+
+        // Event Listeners
+        codeEditor.addEventListener('input', () => {
+            virtualFiles[currentFile].content = codeEditor.value;
+            updateLineNumbers();
+        });
+
+        codeEditor.addEventListener('scroll', () => {
+            lineNumbers.scrollTop = codeEditor.scrollTop;
+        });
+
+        function updateCursorPos() {
+            const text = codeEditor.value.substring(0, codeEditor.selectionStart);
+            const lines = text.split('\n');
+            cursorLn.textContent = lines.length;
+            cursorCol.textContent = lines[lines.length - 1].length + 1;
+        }
+
+        codeEditor.addEventListener('keyup', updateCursorPos);
+        codeEditor.addEventListener('click', updateCursorPos);
+
+        // Phím Tab và phím tắt F5
+        codeEditor.addEventListener('keydown', (e) => {
+            if (e.key === 'F5' || ((e.ctrlKey || e.metaKey) && e.key === 'Enter')) {
+                e.preventDefault();
+                runPythonCode();
+                return;
+            }
+
+            if (e.key === 'Tab') {
+                e.preventDefault();
+                const start = codeEditor.selectionStart;
+                const end = codeEditor.selectionEnd;
+                codeEditor.value = codeEditor.value.substring(0, start) + "    " + codeEditor.value.substring(end);
+                codeEditor.selectionStart = codeEditor.selectionEnd = start + 4;
+                virtualFiles[currentFile].content = codeEditor.value;
+                updateLineNumbers();
+            }
+        });
+
+        btnRun.addEventListener('click', runPythonCode);
+
+        btnClearTerm.addEventListener('click', () => {
+            terminalOutput.innerHTML = '';
+            appendTerminal("[INFO] Terminal đã được xóa sạch.", 'stdout');
+        });
+
+        btnCopyTerm.addEventListener('click', () => {
+            const text = terminalOutput.innerText;
+            const temp = document.createElement('textarea');
+            temp.value = text;
+            document.body.appendChild(temp);
+            temp.select();
+            document.execCommand('copy');
+            document.body.removeChild(temp);
+
+            btnCopyTerm.innerHTML = '<i class="fa-solid fa-check text-green-400"></i>';
+            setTimeout(() => {
+                btnCopyTerm.innerHTML = '<i class="fa-regular fa-copy"></i>';
+            }, 1500);
+        });
+
+        let isWrapped = true;
+        btnToggleWrap.addEventListener('click', () => {
+            isWrapped = !isWrapped;
+            terminalOutput.classList.toggle('whitespace-nowrap', !isWrapped);
+        });
+
+        let isMaximized = false;
+        const terminalPanel = document.getElementById('terminal-panel');
+        document.getElementById('btn-maximize-term').addEventListener('click', () => {
+            isMaximized = !isMaximized;
+            terminalPanel.style.height = isMaximized ? '75%' : '16rem';
+        });
+
+        // Quick Solve & Preset Handler
+        const quickA = document.getElementById('quick-a');
+        const quickB = document.getElementById('quick-b');
+        const quickC = document.getElementById('quick-c');
+        const btnApplyQuick = document.getElementById('btn-apply-quick');
+        const presetSelector = document.getElementById('preset-selector');
+
+        function updateCodeAndSolve(valA, valB, valC) {
+            // Cập nhật giá trị vào tệp quadratic_solver.py
+            const regex = /a,\s*b,\s*c\s*=\s*[\d.e+-]+,\s*[\d.e+-]+,\s*[\d.e+-]+/g;
+            const replacement = `a, b, c = ${valA}, ${valB}, ${valC}`;
+            
+            let fileContent = virtualFiles["quadratic_solver.py"].content;
+            if (regex.test(fileContent)) {
+                virtualFiles["quadratic_solver.py"].content = fileContent.replace(regex, replacement);
+            }
+
+            // Nếu đang mở tab quadratic_solver.py thì cập nhật ngay trên editor
+            if (currentFile === "quadratic_solver.py") {
+                codeEditor.value = virtualFiles["quadratic_solver.py"].content;
+                updateLineNumbers();
+            } else {
+                switchTab("quadratic_solver.py");
+            }
+
+            // Chạy Python ngay lập tức
+            runPythonCode();
+        }
+
+        btnApplyQuick.addEventListener('click', () => {
+            const a = parseFloat(quickA.value) || 0;
+            const b = parseFloat(quickB.value) || 0;
+            const c = parseFloat(quickC.value) || 0;
+            updateCodeAndSolve(a, b, c);
+        });
+
+        presetSelector.addEventListener('change', (e) => {
+            const [a, b, c] = e.target.value.split(',');
+            quickA.value = a;
+            quickB.value = b;
+            quickC.value = c;
+            updateCodeAndSolve(a, b, c);
+        });
+
+        // Resizable panel splitter
+        const resizer = document.getElementById('panel-resizer');
+        let isResizing = false;
+        resizer.addEventListener('mousedown', () => {
+            isResizing = true;
+            document.body.style.cursor = 'row-resize';
+        });
+        window.addEventListener('mousemove', (e) => {
+            if (!isResizing) return;
+            const containerHeight = window.innerHeight;
+            const newHeight = containerHeight - e.clientY - 24;
+            if (newHeight >= 80 && newHeight <= containerHeight * 0.85) {
+                terminalPanel.style.height = `${newHeight}px`;
+            }
+        });
+        window.addEventListener('mouseup', () => {
+            isResizing = false;
+            document.body.style.cursor = 'default';
+        });
+
+        // Khởi động khi tải xong trang
+        window.onload = function() {
+            codeEditor.value = virtualFiles[currentFile].content;
+            renderTabs();
+            updateLineNumbers();
+            initPyodideWasm();
+        };
+    </script>
+</body>
+</html>
